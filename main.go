@@ -94,13 +94,3 @@ func multi(desc string) string {
 func Multi(desc string, input func(in io.WriteCloser)) string {
 	return withFilter(multi(desc), input)
 }
-
-func main() {
-	Plain("env", func(in io.WriteCloser) {
-		files := []string{"a", "b", "c"}
-
-		for _, file := range files {
-			fmt.Fprintln(in, file)
-		}
-	})
-}
