@@ -15,7 +15,7 @@ func isExecutable(name string) bool {
 }
 
 func startedFromTerminal() bool {
-	return os.Getenv("TERM") != ""
+	return os.Getenv("TERM") != "" && os.Getenv("FORCE_DESKTOP") != "true"
 }
 
 func getShell() string {
