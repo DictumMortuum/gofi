@@ -1,8 +1,8 @@
 package gofi
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func TestIsExecutable(t *testing.T) {

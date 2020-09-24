@@ -3,10 +3,10 @@ package gofi
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
-	"log"
 )
 
 func isExecutable(name string) bool {
@@ -66,9 +66,9 @@ func plain(desc string) string {
 	case "rofi":
 		return fmt.Sprintf("rofi -dmenu -multi-select -matching fuzzy -i -p '%s'", desc)
 	case "dmenu":
-		return fmt.Sprintf("dmenu")
+		return "dmenu"
 	case "fzf":
-		return fmt.Sprintf("fzf -m -i")
+		return "fzf -m -i"
 	default:
 		return "echo"
 	}
@@ -83,9 +83,9 @@ func multi(desc string) string {
 	case "rofi":
 		return fmt.Sprintf("rofi -dmenu -multi-select -matching fuzzy -i -p '%s'", desc)
 	case "dmenu":
-		return fmt.Sprintf("dmenu")
+		return "dmenu"
 	case "fzf":
-		return fmt.Sprintf("fzf -m -i")
+		return "fzf -m -i"
 	default:
 		return "echo"
 	}
@@ -93,4 +93,17 @@ func multi(desc string) string {
 
 func Multi(desc string, input func(in io.WriteCloser)) string {
 	return withFilter(multi(desc), input)
+}
+
+func Files(desc string, input func(in io.WriteCloser)) string {
+	var cmd string
+
+	switch executable() {
+	case "fzf":
+		cmd = "fzf -m -i"
+	default:
+		cmd = "echo"
+	}
+
+	return withFilter(cmd, input)
 }
