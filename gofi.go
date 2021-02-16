@@ -1,9 +1,9 @@
 package gofi
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -28,82 +28,151 @@ func getShell() string {
 	return shell
 }
 
-func withFilter(command string, input func(in io.WriteCloser)) string {
-	cmd := exec.Command(getShell(), "-c", command)
-	cmd.Stderr = os.Stderr
-	in, _ := cmd.StdinPipe()
+type Executable struct {
+	Name    string
+	Options string
+	Desktop bool
+}
 
-	go func() {
-		input(in)
-		in.Close()
-	}()
+type GofiOptions struct {
+	Executables  []Executable
+	ForceDesktop bool
+	Description  string
+}
 
-	result, _ := cmd.Output()
-	temp := string(result)
+func (g *GofiOptions) Validate() error {
+	if !startedFromTerminal() {
+		g.ForceDesktop = true
+	}
+
+	if len(g.Executables) == 0 {
+		if isExecutable("fzf") {
+			g.Executables = append(g.Executables, Executable{
+				Name:    "fzf",
+				Options: "-m -i",
+				Desktop: false,
+			})
+		}
+
+		if isExecutable("rofi") {
+			var options string
+
+			if g.Description != "" {
+				options = fmt.Sprintf("rofi -dmenu -multi-select -matching fuzzy -i -p '%s'", g.Description)
+			} else {
+				options = "-dmenu -multi-select -matching fuzzy -i"
+			}
+
+			g.Executables = append(g.Executables, Executable{
+				Name:    "rofi",
+				Options: options,
+				Desktop: true,
+			})
+		}
+
+		if isExecutable("dmenu") {
+			g.Executables = append(g.Executables, Executable{
+				Name:    "dmenu",
+				Options: "",
+				Desktop: true,
+			})
+		}
+	}
+
+	if len(g.Executables) == 0 {
+		return errors.New("No executables found in PATH")
+	}
+
+	return nil
+}
+
+func (g *GofiOptions) Executable() (error, string) {
+	for _, e := range g.Executables {
+		if g.ForceDesktop == e.Desktop {
+			return nil, e.Name + " " + e.Options
+		}
+	}
+
+	return errors.New("No suitable executables found"), ""
+}
+
+func stripOutput(s []byte) string {
+	temp := string(s)
 	temp = strings.Replace(temp, "\n", " ", -1)
 	temp = strings.TrimSpace(temp)
-
 	return temp
 }
 
-func executable() string {
-	if startedFromTerminal() && isExecutable("fzf") {
-		return "fzf"
+func FromMap(opt *GofiOptions, input map[string]string) (error, []string) {
+	rs := []string{}
+
+	err := opt.Validate()
+	if err != nil {
+		return err, rs
 	}
 
-	if isExecutable("rofi") {
-		return "rofi"
-	} else if isExecutable("dmenu") {
-		return "dmenu"
+	err, command := opt.Executable()
+	if err != nil {
+		return err, rs
 	}
 
-	log.Fatal("No executable found")
-	return ""
-}
+	cmd := exec.Command(getShell(), "-c", command)
+	cmd.Stderr = os.Stderr
 
-func plain(desc string) string {
-	switch executable() {
-	case "rofi":
-		return fmt.Sprintf("rofi -dmenu -multi-select -matching fuzzy -i -p '%s'", desc)
-	case "dmenu":
-		return "dmenu"
-	case "fzf":
-		return "fzf -m -i"
-	default:
-		return "echo"
-	}
-}
-
-func Plain(desc string, input func(in io.WriteCloser)) string {
-	return withFilter(plain(desc), input)
-}
-
-func multi(desc string) string {
-	switch executable() {
-	case "rofi":
-		return fmt.Sprintf("rofi -dmenu -multi-select -matching fuzzy -i -p '%s'", desc)
-	case "dmenu":
-		return "dmenu"
-	case "fzf":
-		return "fzf -m -i"
-	default:
-		return "echo"
-	}
-}
-
-func Multi(desc string, input func(in io.WriteCloser)) string {
-	return withFilter(multi(desc), input)
-}
-
-func Files(desc string, input func(in io.WriteCloser)) string {
-	var cmd string
-
-	switch executable() {
-	case "fzf":
-		cmd = "fzf -m -i"
-	default:
-		cmd = "echo"
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err, rs
 	}
 
-	return withFilter(cmd, input)
+	go func() {
+		for key := range input {
+			fmt.Fprintln(stdin, key)
+		}
+		stdin.Close()
+	}()
+
+	stdout, err := cmd.Output()
+	if err != nil {
+		return err, rs
+	}
+
+	for _, key := range strings.Split(stripOutput(stdout), " ") {
+		rs = append(rs, input[key])
+	}
+
+	return nil, rs
+}
+
+func FromFilter(opt *GofiOptions, input func(in io.WriteCloser)) (error, []string) {
+	rs := []string{}
+
+	err := opt.Validate()
+	if err != nil {
+		return err, rs
+	}
+
+	err, command := opt.Executable()
+	if err != nil {
+		return err, rs
+	}
+
+	cmd := exec.Command(getShell(), "-c", command)
+	cmd.Stderr = os.Stderr
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err, rs
+	}
+
+	go func() {
+		input(stdin)
+		stdin.Close()
+	}()
+
+	stdout, err := cmd.Output()
+	if err != nil {
+		return err, rs
+	}
+
+	return nil, strings.Split(stripOutput(stdout), " ")
 }
