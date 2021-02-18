@@ -18,6 +18,10 @@ func startedFromTerminal() bool {
 	return os.Getenv("TERM") != "" && os.Getenv("FORCE_DESKTOP") != "true"
 }
 
+func empty(s string) bool {
+	return len(strings.TrimSpace(s)) == 0
+}
+
 func getShell() string {
 	shell := os.Getenv("SHELL")
 
@@ -96,13 +100,6 @@ func (g *GofiOptions) Executable() (error, string) {
 	return errors.New("No suitable executables found"), ""
 }
 
-func stripOutput(s []byte) string {
-	temp := string(s)
-	temp = strings.Replace(temp, "\n", " ", -1)
-	temp = strings.TrimSpace(temp)
-	return temp
-}
-
 func FromMap(opt *GofiOptions, input map[string]string) (error, []string) {
 	rs := []string{}
 
@@ -136,8 +133,10 @@ func FromMap(opt *GofiOptions, input map[string]string) (error, []string) {
 		return err, rs
 	}
 
-	for _, key := range strings.Split(stripOutput(stdout), " ") {
-		rs = append(rs, input[key])
+	for _, key := range strings.Split(string(stdout), "\n") {
+		if !empty(key) {
+			rs = append(rs, strings.TrimSpace(input[key]))
+		}
 	}
 
 	return nil, rs
@@ -174,5 +173,11 @@ func FromFilter(opt *GofiOptions, input func(in io.WriteCloser)) (error, []strin
 		return err, rs
 	}
 
-	return nil, strings.Split(stripOutput(stdout), " ")
+	for _, key := range strings.Split(string(stdout), "\n") {
+		if !empty(key) {
+			rs = append(rs, strings.TrimSpace(key))
+		}
+	}
+
+	return nil, rs
 }
