@@ -181,3 +181,45 @@ func FromFilter(opt *GofiOptions, input func(in io.WriteCloser)) (error, []strin
 
 	return nil, rs
 }
+
+func FromArray(opt *GofiOptions, input []string) (error, []string) {
+	rs := []string{}
+
+	err := opt.Validate()
+	if err != nil {
+		return err, rs
+	}
+
+	err, command := opt.Executable()
+	if err != nil {
+		return err, rs
+	}
+
+	cmd := exec.Command(getShell(), "-c", command)
+	cmd.Stderr = os.Stderr
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err, rs
+	}
+
+	go func() {
+		for _, key := range input {
+			fmt.Fprintln(stdin, key)
+		}
+		stdin.Close()
+	}()
+
+	stdout, err := cmd.Output()
+	if err != nil {
+		return err, rs
+	}
+
+	for _, key := range strings.Split(string(stdout), "\n") {
+		if !empty(key) {
+			rs = append(rs, strings.TrimSpace(key))
+		}
+	}
+
+	return nil, rs
+}
