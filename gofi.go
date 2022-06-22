@@ -42,6 +42,7 @@ type GofiOptions struct {
 	Executables  []Executable
 	ForceDesktop bool
 	Description  string
+	PreviewPath  string
 }
 
 func (g *GofiOptions) Validate() error {
@@ -51,9 +52,17 @@ func (g *GofiOptions) Validate() error {
 
 	if len(g.Executables) == 0 {
 		if isExecutable("fzf") {
+			var options string
+
+			if g.PreviewPath != "" {
+				options = fmt.Sprintf("-m -i --preview '%s'", g.PreviewPath)
+			} else {
+				options = "-m -i"
+			}
+
 			g.Executables = append(g.Executables, Executable{
 				Name:    "fzf",
-				Options: "-m -i",
+				Options: options,
 				Desktop: false,
 			})
 		}
