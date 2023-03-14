@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -255,9 +256,18 @@ func FromInterface(opt *GofiOptions, input map[string]interface{}) ([]string, er
 	}
 
 	go func() {
+		temp := []string{}
+
 		for key := range input {
+			temp = append(temp, key)
+		}
+
+		sort.Strings(temp)
+
+		for key := range temp {
 			fmt.Fprintln(stdin, key)
 		}
+
 		stdin.Close()
 	}()
 
