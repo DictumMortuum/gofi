@@ -264,7 +264,7 @@ func FromInterface(opt *GofiOptions, input map[string]interface{}) ([]string, er
 
 		sort.Strings(temp)
 
-		for key := range temp {
+		for _, key := range temp {
 			fmt.Fprintln(stdin, key)
 		}
 
