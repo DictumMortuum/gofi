@@ -58,7 +58,7 @@ func (g *GofiOptions) Validate() error {
 			if g.PreviewPath != "" {
 				options = fmt.Sprintf("-m -i --bind 'esc:become(exit)' --preview '%s'", g.PreviewPath)
 			} else {
-				options = "-m -i"
+				options = "-m -i --bind 'esc:become(exit)'"
 			}
 
 			g.Executables = append(g.Executables, Executable{
