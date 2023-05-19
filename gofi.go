@@ -12,6 +12,7 @@ import (
 
 func isExecutable(name, prefer_path string) bool {
 	_, err := exec.LookPath(prefer_path + "/" + name)
+	fmt.Println(err, prefer_path+"/"+name)
 	if err != nil {
 		_, err = exec.LookPath(name)
 		if err != nil {
