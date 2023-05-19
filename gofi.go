@@ -16,7 +16,7 @@ func isExecutable(name, prefer_path string) bool {
 		return false
 	}
 
-	_, err := exec.LookPath(name)
+	_, err = exec.LookPath(name)
 	if err != nil {
 		return false
 	}
