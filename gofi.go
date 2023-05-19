@@ -10,9 +10,18 @@ import (
 	"strings"
 )
 
-func isExecutable(name string) bool {
+func isExecutable(name, prefer_path string) bool {
+	_, err := exec.LookPath(prefer_path + "/" + name)
+	if err != nil {
+		return false
+	}
+
 	_, err := exec.LookPath(name)
-	return err == nil
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func startedFromTerminal() bool {
@@ -44,6 +53,7 @@ type GofiOptions struct {
 	ForceDesktop bool
 	Description  string
 	PreviewPath  string
+	PreferPath   string
 }
 
 func (g *GofiOptions) Validate() error {
@@ -51,8 +61,12 @@ func (g *GofiOptions) Validate() error {
 		g.ForceDesktop = true
 	}
 
+	if g.PreferPath == "" {
+		g.PreferPath = "/usr/local/bin"
+	}
+
 	if len(g.Executables) == 0 {
-		if isExecutable("fzf") {
+		if isExecutable("fzf", g.PreferPath) {
 			var options string
 
 			if g.PreviewPath != "" {
@@ -68,7 +82,7 @@ func (g *GofiOptions) Validate() error {
 			})
 		}
 
-		if isExecutable("rofi") {
+		if isExecutable("rofi", g.PreferPath) {
 			var options string
 
 			if g.Description != "" {
@@ -84,7 +98,7 @@ func (g *GofiOptions) Validate() error {
 			})
 		}
 
-		if isExecutable("dmenu") {
+		if isExecutable("dmenu", g.PreferPath) {
 			g.Executables = append(g.Executables, Executable{
 				Name:    "dmenu",
 				Options: "",
